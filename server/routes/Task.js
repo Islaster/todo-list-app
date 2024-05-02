@@ -2,9 +2,19 @@ const taskCtrl = require("../controllers/Task");
 const express = require("express");
 const router = express.Router();
 
-router.get("/", taskCtrl.all);
-router.post("/", taskCtrl.add);
-router.put("/:id", taskCtrl.update);
-router.delete("/:id", taskCtrl.delete);
+// Wrap the controller call to pass the socket object
+router.get("/", (req, res) => taskCtrl.all(req, res));
+router.post("/", (req, res) => {
+  const io = req.app.get("io");
+  taskCtrl.add(req, res, io);
+});
+router.put("/:id", (req, res) => {
+  const io = req.app.get("io");
+  taskCtrl.update(req, res, io);
+});
+router.delete("/:id", (req, res) => {
+  const io = req.app.get("io");
+  taskCtrl.delete(req, res, io);
+});
 
 module.exports = router;

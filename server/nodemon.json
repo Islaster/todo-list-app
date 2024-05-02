@@ -1,0 +1,6 @@
+{
+  "ignore": ["node_modules/**/*", "public/**/*", ".git", "dist"],
+  "watch": ["**/*.js"],
+  "ext": "js",
+  "exec": "node index.js"
+}

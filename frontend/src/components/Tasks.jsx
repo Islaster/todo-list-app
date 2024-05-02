@@ -1,61 +1,65 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useTasks } from "../hooks/useTasks";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import axios from "axios";
 
 const Tasks = () => {
-  const [tasks, setTasks] = useState([]);
+  const { tasks, addOrUpdateTask, deleteTask } = useTasks();
   const [taskInput, setTaskInput] = useState("");
   const [priorityInput, setPriorityInput] = useState("low");
   const [dateInput, setDateInput] = useState("");
   const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  const handleTranscript = (transcript) => setTaskInput(transcript);
+  const { isListening, toggleListening } =
+    useSpeechRecognition(handleTranscript);
 
-  const fetchTasks = async () => {
-    const result = await axios.get("http://localhost:3001/");
-    setTasks(result.data);
+  const addToCalendar = async (task) => {
+    try {
+      await axios.post("http://localhost:3001/google/events", {
+        description: task.description,
+        priority: task.priority,
+        date: task.date,
+      });
+      alert("Task added to Google Calendar!");
+    } catch (error) {
+      console.error("Error adding to calendar:", error);
+      alert("Failed to add task to Google Calendar.");
+    }
   };
 
-  const addOrUpdateTask = async () => {
+  const handleAddOrUpdateTask = () => {
     const taskData = {
       description: taskInput,
       priority: priorityInput,
       date: new Date(dateInput),
-      completed: false, // Default when adding a new task
+      completed: false,
     };
-
-    if (editingId) {
-      await axios.put(`http://localhost:3001/${editingId}`, taskData);
-      setEditingId(null); // Clear editingId after update
-    } else {
-      await axios.post("http://localhost:3001/", taskData);
-    }
-
+    addOrUpdateTask(taskData, editingId);
     setTaskInput("");
     setPriorityInput("low");
     setDateInput("");
-    fetchTasks();
+    setEditingId(null);
   };
 
   const editTask = (task) => {
     setEditingId(task._id);
     setTaskInput(task.description);
     setPriorityInput(task.priority);
-    setDateInput(task.date.split("T")[0]); // Formatting the date input to YYYY-MM-DD
-  };
-
-  const deleteTask = async (id) => {
-    await axios.delete(`http://localhost:3001/${id}`);
-    fetchTasks();
+    setDateInput(task.date.split("T")[0]); // Format date for input field
   };
 
   const toggleCompletion = async (task) => {
-    await axios.put(`http://localhost:3001/${task._id}`, {
+    const updatedTask = {
       ...task,
       completed: !task.completed,
-    });
-    fetchTasks();
+    };
+    await addOrUpdateTask(updatedTask, task._id);
+  };
+
+  const handleLogin = async () => {
+    // Redirect to the backend route for Google authentication
+    window.location.href = "http://localhost:3001/google/auth/google";
   };
 
   return (
@@ -67,6 +71,9 @@ const Tasks = () => {
         onChange={(e) => setTaskInput(e.target.value)}
         placeholder="Enter a task description"
       />
+      <button onClick={toggleListening}>
+        {isListening ? "Stop Listening" : "Start Listening"}
+      </button>
       <select
         value={priorityInput}
         onChange={(e) => setPriorityInput(e.target.value)}
@@ -80,7 +87,7 @@ const Tasks = () => {
         value={dateInput}
         onChange={(e) => setDateInput(e.target.value)}
       />
-      <button onClick={addOrUpdateTask}>
+      <button onClick={handleAddOrUpdateTask}>
         {editingId ? "Update Task" : "Add Task"}
       </button>
       <ul>
@@ -96,17 +103,15 @@ const Tasks = () => {
             />
             {task.description} - {task.priority} -{" "}
             {new Date(task.date).toDateString()}
-            <button
-              onClick={() => {
-                editTask(task);
-              }}
-            >
-              Edit
-            </button>
+            <button onClick={() => addToCalendar(task)}>Add to Calendar</button>
+            <button onClick={() => editTask(task)}>Edit</button>
             <button onClick={() => deleteTask(task._id)}>Delete</button>
           </li>
         ))}
       </ul>
+      <div>
+        <button onClick={handleLogin}>Sign in with Google</button>
+      </div>
     </div>
   );
 };
